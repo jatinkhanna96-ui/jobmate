@@ -2,11 +2,11 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'ApplyPilot',
-  description: 'AI job application agent that matches your profile against jobs, tailors applications, and tracks your pipeline with user approval.',
+  title: 'CareerPilot AI — Personal AI Job-Search Agent',
+  description: 'Your AI career agent works every day to find the right jobs before they disappear. Discovers newly posted relevant jobs, evaluates them with transparent evidence, prepares tailored applications, and tracks outcomes.',
   openGraph: {
-    title: 'ApplyPilot',
-    description: 'AI job application agent that matches your profile against jobs, tailors applications, and tracks your pipeline with user approval.',
+    title: 'CareerPilot AI — Personal AI Job-Search Agent',
+    description: 'Your AI career agent works every day to find the right jobs before they disappear.',
   },
 };
 

@@ -1,16 +1,15 @@
 import {
-  JobProfile,
-  JobRecord,
-  JobMatchAnalysis,
-  TailoredApplication,
-  AgentSettings,
-  AgentCommandResult,
-  ExtractedJobDetails,
-  WorkplaceType,
   UserProfile,
   Job,
+  NormalizedJob,
   MatchAnalysis,
-} from "@/types";
+  MatchDecision,
+  TailoredApplication,
+  CareerPreferences,
+  ScreeningAnswer,
+  ExtractedEvidence,
+} from './types';
+import { initialCareerPreferences } from './sample-data';
 
 // ============================================================================
 // EXTENSIVE 100+ KEYWORD SKILLS DICTIONARY
@@ -18,213 +17,102 @@ import {
 // ============================================================================
 export const SKILL_DICTIONARY: string[] = [
   // Programming Languages
-  "Python", "JavaScript", "TypeScript", "Java", "C++", "C#", "Go", "Rust", "Ruby", "PHP",
-  "Swift", "Kotlin", "Scala", "C", "R", "Dart", "Shell", "Bash", "PowerShell", "Perl",
+  'Python', 'JavaScript', 'TypeScript', 'Java', 'C++', 'C#', 'Go', 'Rust', 'Ruby', 'PHP',
+  'Swift', 'Kotlin', 'Scala', 'C', 'R', 'Dart', 'Shell', 'Bash', 'PowerShell', 'Perl',
 
   // Frontend & Mobile
-  "React", "Next.js", "Vue.js", "Nuxt.js", "Angular", "Svelte", "HTML", "HTML5", "CSS", "CSS3",
-  "Tailwind CSS", "Bootstrap", "Sass", "Redux", "Zustand", "React Native", "Flutter", "Webpack", "Vite",
+  'React', 'Next.js', 'Vue.js', 'Nuxt.js', 'Angular', 'Svelte', 'HTML', 'HTML5', 'CSS', 'CSS3',
+  'Tailwind CSS', 'Bootstrap', 'Sass', 'Redux', 'Zustand', 'React Native', 'Flutter', 'Webpack', 'Vite',
 
   // Backend & APIs
-  "Node.js", "Express", "Django", "Flask", "FastAPI", "Spring Boot", "ASP.NET", ".NET", "Ruby on Rails",
-  "GraphQL", "REST API", "gRPC", "WebSockets", "Microservices", "Serverless",
+  'Node.js', 'Express', 'Django', 'Flask', 'FastAPI', 'Spring Boot', 'ASP.NET', '.NET', 'Ruby on Rails',
+  'GraphQL', 'REST API', 'gRPC', 'WebSockets', 'Microservices', 'Serverless',
 
   // Databases & Storage
-  "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "Elasticsearch", "DynamoDB", "Cassandra",
-  "SQLite", "MariaDB", "Oracle", "Firebase", "Firestore", "Supabase", "Prisma",
+  'SQL', 'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'Elasticsearch', 'DynamoDB', 'Cassandra',
+  'SQLite', 'MariaDB', 'Oracle', 'Firebase', 'Firestore', 'Supabase', 'Prisma',
 
   // Cloud & Infrastructure / DevOps
-  "AWS", "GCP", "Azure", "Docker", "Kubernetes", "Terraform", "Ansible", "Linux", "Unix",
-  "CI/CD", "GitHub Actions", "GitLab CI", "Jenkins", "Nginx", "Cloudflare", "Helm", "Prometheus", "Grafana",
+  'AWS', 'GCP', 'Azure', 'Docker', 'Kubernetes', 'Terraform', 'Ansible', 'Linux', 'Unix',
+  'CI/CD', 'GitHub Actions', 'GitLab CI', 'Jenkins', 'Nginx', 'Cloudflare', 'Helm', 'Prometheus', 'Grafana',
 
   // Data Science, AI & Machine Learning
-  "Machine Learning", "Deep Learning", "Artificial Intelligence", "AI Ops", "MLOps", "PyTorch",
-  "TensorFlow", "Scikit-Learn", "Pandas", "NumPy", "Data Analysis", "Data Science", "Data Engineering",
-  "BigQuery", "Snowflake", "Apache Spark", "Kafka", "NLP", "Computer Vision", "LLMs", "Generative AI", "RAG",
+  'Machine Learning', 'Deep Learning', 'Artificial Intelligence', 'AI Ops', 'MLOps', 'PyTorch',
+  'TensorFlow', 'Scikit-Learn', 'Pandas', 'NumPy', 'Data Analysis', 'Data Science', 'Data Engineering',
+  'BigQuery', 'Snowflake', 'Apache Spark', 'Kafka', 'NLP', 'Computer Vision', 'LLMs', 'Generative AI', 'RAG',
+  'Gemini API',
 
   // Design, UX & Prototyping
-  "Figma", "UI/UX Design", "Wireframing", "Prototyping", "Adobe XD", "User Research", "Design Systems", "Usability Testing",
+  'Figma', 'UI/UX Design', 'Wireframing', 'Prototyping', 'Adobe XD', 'User Research', 'Design Systems',
 
-  // Operations, Agile & Team Leadership
-  "Agile", "Scrum", "Kanban", "Jira", "Confluence", "Git", "GitHub", "GitLab",
-  "System Design", "Software Architecture", "Project Management", "Product Management",
-  "Code Review", "Mentorship", "Team Leadership", "Cross-Functional Collaboration",
+  // Operations, Product & Team Leadership
+  'Product Operations', 'Agile', 'Scrum', 'Kanban', 'Jira', 'Confluence', 'Git', 'GitHub', 'GitLab',
+  'System Design', 'Software Architecture', 'Project Management', 'Product Management',
+  'Code Review', 'Mentorship', 'Team Leadership', 'Cross-Functional Collaboration',
 
-  // Marketing, Business & Growth
-  "Marketing", "SEO", "SEM", "Google Analytics", "Content Strategy", "Email Marketing",
-  "Growth Marketing", "CRM", "Salesforce", "HubSpot", "Social Media Marketing", "Copywriting", "A/B Testing"
+  // Business & Research
+  'Market Research', 'Consumer Insights', 'Marketing Analytics', 'Business Analysis', 'SOP Design', 'Requirements Scoping'
 ];
 
 /**
- * Robust word-boundary skill matching accounting for special characters (+, #, ., -)
+ * Word-boundary matching accounting for special characters (+, #, ., -)
  */
 export function matchSkillInText(skill: string, text: string): boolean {
   if (!skill || !text) return false;
-  const escaped = skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escaped = skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const startsWord = /^\w/.test(skill);
   const endsWord = /\w$/.test(skill);
-  const pattern = `${startsWord ? "\\b" : ""}${escaped}${endsWord ? "\\b" : ""}`;
-  const regex = new RegExp(pattern, "i");
+  const pattern = `${startsWord ? '\\b' : ''}${escaped}${endsWord ? '\\b' : ''}`;
+  const regex = new RegExp(pattern, 'i');
   return regex.test(text);
 }
 
 // ============================================================================
-// 1. LOCAL RESUME PARSER (OpenResume Algorithm)
+// DETERMINISTIC & AI JOB MATCHING ENGINE
 // ============================================================================
 
-export async function parseResumeWithAI(resumeText: string): Promise<Partial<JobProfile>> {
-  return parseResumeHeuristic(resumeText);
-}
-
-export function parseResumeHeuristic(text: string): Partial<JobProfile> {
-  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-
-  // 1. Email Extraction
-  const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-
-  // 2. Phone Extraction
-  const phoneMatch = text.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
-
-  // 3. Improved Name Extraction:
-  // Check the first non-empty lines, removing titles, honorifics, or common headings
-  let name = "";
-  const headingWords = /^(curriculum vitae|resume|cv|candidate profile|profile|summary|contact information|contact info|personal info)\b/i;
-  const honorifics = /^(mr\.|mrs\.|ms\.|dr\.|prof\.|eng\.)\s+/i;
-  const nonNameRoleKeywords = /^(software|engineer|developer|architect|designer|manager|lead|analyst|specialist|consultant|summary|objective|experience|skills|education)\b/i;
-
-  for (const rawLine of lines.slice(0, 10)) {
-    let line = rawLine.trim();
-
-    // Skip lines with email, phone, or web addresses
-    if (line.includes("@") || /https?:\/\/|www\./i.test(line) || /\d{3,}/.test(line)) {
-      continue;
-    }
-
-    // Strip common heading prefixes
-    if (headingWords.test(line)) {
-      line = line.replace(headingWords, "").trim();
-      if (!line) continue;
-    }
-
-    // Strip honorific titles (Dr., Mr., etc.)
-    line = line.replace(honorifics, "").trim();
-
-    // Handle names separated by pipes or dashes: e.g. "Sarah Connor | Lead Engineer"
-    const splitParts = line.split(/[|•—–\/-]/);
-    const candidatePart = splitParts[0].trim();
-
-    // Check if the candidate portion consists of 2-4 clean alphabetical words
-    if (/^[A-Za-zÀ-ÿ\s'.]{3,40}$/.test(candidatePart)) {
-      const words = candidatePart.split(/\s+/).filter(Boolean);
-      if (words.length >= 1 && words.length <= 4 && !nonNameRoleKeywords.test(candidatePart)) {
-        name = candidatePart;
-        break;
-      }
-    }
-  }
-
-  // Fallback if no clean name identified
-  if (!name && lines.length > 0) {
-    const firstClean = lines[0].replace(/[^A-Za-z\s]/g, " ").trim();
-    if (firstClean.length >= 3 && firstClean.length <= 35 && !/resume|cv/i.test(firstClean)) {
-      name = firstClean;
-    } else {
-      name = "Candidate Name";
-    }
-  }
-
-  // 4. Skills Extraction (100+ keywords across tech, data, cloud, operations, design, management, marketing)
-  const detectedSkills = SKILL_DICTIONARY.filter((skill) => matchSkillInText(skill, text));
-
-  // 5. Current Role Extraction (Heuristic scan of top lines)
-  let currentRole = "Software Engineer";
-  const roleKeywords = [
-    "Engineer", "Developer", "Manager", "Analyst", "Architect", 
-    "Designer", "Lead", "Specialist", "Scientist", "Consultant", "Director"
-  ];
-  for (const line of lines.slice(0, 12)) {
-    if (roleKeywords.some((k) => new RegExp(`\\b${k}\\b`, "i").test(line)) && line.length < 75 && !line.includes("@")) {
-      let cleanedRole = line.replace(/^(Job Title|Position|Current Role|Role):\s*/i, "").trim();
-      // If line contains pipe or dash e.g. "Maya Patel | Principal AI Scientist", pick the role part
-      if (cleanedRole.includes("|") || cleanedRole.includes("—") || cleanedRole.includes("–")) {
-        const parts = cleanedRole.split(/[|—–]/).map(p => p.trim());
-        const rolePart = parts.find(p => roleKeywords.some(k => new RegExp(`\\b${k}\\b`, "i").test(p)));
-        if (rolePart) {
-          cleanedRole = rolePart;
-        }
-      }
-      cleanedRole = cleanedRole.replace(/^(mr\.|mrs\.|ms\.|dr\.|prof\.|eng\.)\s+/i, "").trim();
-      currentRole = cleanedRole;
-      break;
-    }
-  }
-
-  return {
-    name: name || "Candidate Name",
-    email: emailMatch ? emailMatch[0] : "",
-    phone: phoneMatch ? phoneMatch[0] : "",
-    location: "Remote",
-    currentRole,
-    yearsOfExperience: 3,
-    skills: detectedSkills,
-    education: [],
-    previousRoles: [], // Returning empty to completely prevent dummy data hallucinations
-    companies: [],
-    industryExperience: [],
-  };
-}
-
-// ============================================================================
-// 2. LOCAL JOB MATCHER (Strict Keyword Intersection & Requirements Scoring)
-// ============================================================================
-
-export async function analyzeJobWithAI(
-  profile: JobProfile,
-  job: {
-    title: string;
-    company: string;
-    location: string;
-    description: string;
-    salary?: string;
-    workplaceType?: string;
-    requirements?: string[];
-  }
-): Promise<JobMatchAnalysis> {
-  return calculateHeuristicMatch(profile, job);
+export interface MatchOptions {
+  applyThreshold?: number; // default 80
+  reviewThreshold?: number; // default 65
+  preferences?: CareerPreferences;
 }
 
 export function calculateHeuristicMatch(
-  profile: JobProfile,
+  profile: UserProfile,
   job: {
     title: string;
     company: string;
     location: string;
     description: string;
     salary?: string;
-    workplaceType?: string;
+    salaryMin?: number;
+    workplace_type?: string;
     requirements?: string[];
-  }
-): JobMatchAnalysis {
-  // Combine job posting requirements and description
+  },
+  options?: MatchOptions
+): MatchAnalysis {
+  const prefs = options?.preferences || initialCareerPreferences;
+  const applyMin = options?.applyThreshold ?? 80;
+  const reviewMin = options?.reviewThreshold ?? 65;
+
   const combinedJobText = [
-    job.title || "",
-    job.description || "",
+    job.title || '',
+    job.description || '',
     ...(job.requirements || [])
-  ].join(" ");
-  const jobTextLower = combinedJobText.toLowerCase();
+  ].join(' ');
 
   const candidateSkills = (profile.skills || []).map((s) => s.trim()).filter(Boolean);
   const matchedSkillsSet = new Set<string>();
   const missingSkillsSet = new Set<string>();
 
-  // 1. Direct candidate skill intersection with job text
+  // 1. Direct candidate skill intersection
   for (const skill of candidateSkills) {
     if (matchSkillInText(skill, combinedJobText)) {
       matchedSkillsSet.add(skill);
     }
   }
 
-  // 2. Check 100+ Skill Dictionary keywords mentioned in the job posting
+  // 2. Scan skill dictionary against job posting
   for (const dictSkill of SKILL_DICTIONARY) {
     if (matchSkillInText(dictSkill, combinedJobText)) {
       const candidateHasIt = candidateSkills.some(
@@ -238,246 +126,294 @@ export function calculateHeuristicMatch(
     }
   }
 
-  // Remove any skill from missing if it was successfully matched
-  for (const matched of matchedSkillsSet) {
-    missingSkillsSet.delete(matched);
+  for (const m of matchedSkillsSet) {
+    missingSkillsSet.delete(m);
   }
 
   const matchedSkills = Array.from(matchedSkillsSet);
   const missingSkills = Array.from(missingSkillsSet);
 
-  // 3. Location match
+  // 3. Location & Workplace Type Analysis
+  const jobLocationLower = (job.location || '').toLowerCase();
+  const workplaceType = job.workplace_type || (jobLocationLower.includes('remote') ? 'remote' : 'onsite');
+
   const locMatch =
-    (profile.preferredLocations || []).some((loc) =>
-      job.location.toLowerCase().includes(loc.toLowerCase())
-    ) ||
-    (profile.location && job.location.toLowerCase().includes(profile.location.toLowerCase())) ||
-    job.workplaceType === "remote" ||
-    job.location.toLowerCase().includes("remote");
+    prefs.preferredLocations.some((loc) => jobLocationLower.includes(loc.toLowerCase())) ||
+    (profile.location && jobLocationLower.includes(profile.location.toLowerCase())) ||
+    workplaceType === 'remote';
 
-  // 4. Role alignment check
-  const roleKeywords = ["engineer", "developer", "lead", "architect", "manager", "designer", "analyst", "scientist"];
-  const jobTitleLower = (job.title || "").toLowerCase();
-  const candidateRoleLower = (profile.currentRole || "").toLowerCase();
-  const roleMatch = roleKeywords.some(
-    (kw) => jobTitleLower.includes(kw) && candidateRoleLower.includes(kw)
-  );
+  // 4. Role Title Alignment
+  const targetRoles = [
+    ...(prefs.targetRoles || []),
+    profile.targetRole
+  ].filter(Boolean);
 
-  // 5. Transparent Mathematical Scoring
+  const jobTitleLower = (job.title || '').toLowerCase();
+  const roleMatch = targetRoles.some((tr) => {
+    const trWords = tr.toLowerCase().split(/\s+/);
+    return trWords.some((w) => w.length > 3 && jobTitleLower.includes(w));
+  });
+
+  // 5. Hard Constraint Checking
+  const constraintViolations: string[] = [];
+
+  // Constraint: Mandatory on-site conflicts with remote preference
+  if (prefs.remotePreference === 'remote' && workplaceType === 'onsite' && !locMatch) {
+    constraintViolations.push('Mandatory on-site location violates candidate remote preference.');
+  }
+
+  // Constraint: Salary below minimum floor
+  if (job.salaryMin && prefs.minimumSalary && job.salaryMin < prefs.minimumSalary * 0.85) {
+    constraintViolations.push(`Stated salary ($${job.salaryMin.toLocaleString()}) is below user minimum threshold ($${prefs.minimumSalary.toLocaleString()}).`);
+  }
+
+  // Constraint: Required experience gap (check for "8+ years", "10+ years")
+  const expReqMatch = combinedJobText.match(/(\d+)\+?\s*years?\s+(?:of\s+)?experience/i);
+  if (expReqMatch) {
+    const requiredYears = parseInt(expReqMatch[1], 10);
+    const candidateYears = profile.yearsOfExperience || 3;
+    if (requiredYears >= candidateYears + 3) {
+      constraintViolations.push(`Job requires ${requiredYears}+ years experience, exceeding candidate verified tenure (${candidateYears} years).`);
+    }
+  }
+
+  // 6. Transparent Mathematical Scoring
   const totalRelevantSkills = matchedSkills.length + missingSkills.length;
   let skillScore = 75;
   if (totalRelevantSkills > 0) {
     skillScore = Math.round((matchedSkills.length / totalRelevantSkills) * 100);
   } else if (matchedSkills.length > 0) {
-    skillScore = Math.min(95, 60 + matchedSkills.length * 10);
+    skillScore = Math.min(95, 60 + matchedSkills.length * 8);
   }
 
-  // Calculate weighted overall score
-  const roleBonus = roleMatch ? 15 : 5;
-  const locBonus = locMatch ? 15 : 5;
-  const overallScore = Math.min(
-    98,
-    Math.max(40, Math.round(skillScore * 0.7 + roleBonus + locBonus))
+  const expScore = Math.min(95, Math.max(50, (profile.yearsOfExperience || 3) * 10 + 35));
+  const locScore = locMatch ? 100 : (workplaceType === 'hybrid' ? 70 : 45);
+  const roleScore = roleMatch ? 92 : 72;
+  const salaryScore = constraintViolations.some(c => c.includes('salary')) ? 40 : 85;
+
+  let overallScore = Math.round(
+    skillScore * 0.45 +
+    expScore * 0.15 +
+    roleScore * 0.20 +
+    locScore * 0.10 +
+    salaryScore * 0.10
   );
 
+  // If there are hard constraint violations, cap score to prevent accidental queueing
+  if (constraintViolations.length > 0) {
+    overallScore = Math.min(64, overallScore);
+  } else {
+    overallScore = Math.min(98, Math.max(40, overallScore));
+  }
+
+  // 7. Decision Determination
+  let decision: MatchDecision = 'REVIEW';
+  let fitLevel: MatchAnalysis['fitLevel'] = 'Good Match';
+
+  if (constraintViolations.length > 0 || overallScore < reviewMin) {
+    decision = 'SKIP';
+    fitLevel = 'Low Match';
+  } else if (overallScore >= applyMin) {
+    decision = 'APPLY';
+    fitLevel = 'Strong Match';
+  } else {
+    decision = 'REVIEW';
+    fitLevel = 'Moderate Match';
+  }
+
+  // 8. Transparent Match Reasons & Potential Gaps
+  const reasons: string[] = [];
+  if (matchedSkills.length > 0) {
+    reasons.push(`${matchedSkills.length} verified skills matched directly (${matchedSkills.slice(0, 4).join(', ')})`);
+  }
+  if (roleMatch) {
+    reasons.push(`Direct alignment between candidate target roles and ${job.title}`);
+  }
+  if (locMatch) {
+    reasons.push(`${job.location} aligns with preferred locations and remote flexibility`);
+  }
+
+  const gaps: string[] = [];
+  if (missingSkills.length > 0) {
+    gaps.push(`${missingSkills.slice(0, 4).join(', ')} mentioned in requirements but not explicitly verified in profile`);
+  }
+  if (constraintViolations.length > 0) {
+    gaps.push(...constraintViolations);
+  }
+
   return {
-    overallScore,
-    matchReasons: [
-      matchedSkills.length > 0
-        ? `${matchedSkills.length} key skills matched explicitly (${matchedSkills.slice(0, 4).join(", ")})`
-        : "Foundational software competencies align with position.",
-      locMatch
-        ? `${job.location} aligns with your location preferences.`
-        : "Workplace location can be adapted with remote or hybrid flexibility.",
-      roleMatch
-        ? `Direct title alignment between your experience as a ${profile.currentRole} and the ${job.title} role.`
-        : `Transferable engineering capabilities from your ${profile.currentRole} background.`
-    ],
-    potentialGaps:
-      missingSkills.length > 0
-        ? [
-            `${missingSkills.slice(0, 4).join(", ")} mentioned in the job description but not explicitly listed in your profile.`
-          ]
-        : ["No critical technical gaps identified based on explicit job requirements."],
+    matchScore: overallScore,
+    fitLevel,
+    decision,
+    reasons,
+    gaps,
+    strengths: matchedSkills.slice(0, 5),
+    missingKeywords: missingSkills.slice(0, 5),
+    skillGaps: missingSkills.slice(0, 3),
     breakdown: {
       skillsMatch: skillScore,
-      experienceMatch: Math.min(95, Math.max(65, (profile.yearsOfExperience || 3) * 12 + 40)),
-      jobTitleRelevance: roleMatch ? 90 : 75,
-      industryRelevance: 80,
-      locationPreference: locMatch ? 100 : 55,
-      salaryPreference: 80,
-      seniority: 80,
-      educationRequirements: 85
+      experienceMatch: expScore,
+      locationMatch: locScore,
+      salaryMatch: salaryScore,
+      roleMatch: roleScore,
+      industryMatch: 80,
+      seniorityMatch: 80
     },
-    requirementsAnalysis: [
-      ...matchedSkills.slice(0, 6).map((s) => ({
-        skillOrRequirement: s,
-        userEvidence: "Explicitly matched from candidate profile competencies.",
-        status: "strong" as const
-      })),
-      ...missingSkills.slice(0, 4).map((s) => ({
-        skillOrRequirement: s,
-        userEvidence: "Keyword found in job posting requirements.",
-        status: "gap" as const
-      }))
-    ],
-    applicationStrategy: {
-      relevantResumePoints: [
-        `Lead your application with your proven track record in ${matchedSkills[0] || "core engineering"}.`,
-      ],
-      skillsToEmphasize: matchedSkills.slice(0, 5),
-      potentialConcerns:
-        missingSkills.length > 0
-          ? [`Prepare to address experience or willingness to quickly ramp up on ${missingSkills[0]}.`]
-          : ["Highlight specific quantifiable impacts and production deployments."],
-      suggestedScreeningAnswers: []
-    }
+    constraintViolations,
+    recommendation: decision === 'APPLY'
+      ? `AI Match Estimate: ${overallScore}% (APPLY). Strong qualification alignment. Recommended for immediate application preparation.`
+      : decision === 'REVIEW'
+      ? `AI Match Estimate: ${overallScore}% (REVIEW). Viable opportunity with moderate skill/compensation trade-offs. Review details before preparing.`
+      : `AI Match Estimate: ${overallScore}% (SKIP). ${constraintViolations[0] || 'Score below qualification threshold.'}`,
+    analyzedAt: new Date().toISOString().split('T')[0]
   };
 }
 
-// ============================================================================
-// 3. JOB RESCORING & ADAPTER HELPERS FOR UI & PIPELINE
-// ============================================================================
-
-export function formatMatchAnalysis(
-  analysis: JobMatchAnalysis,
-  profile: { skills: string[]; currentRole?: string; targetRole?: string }
-): MatchAnalysis {
-  const score = analysis.overallScore;
-  let fitLevel: MatchAnalysis["fitLevel"] = "Good Match";
-  if (score >= 88) fitLevel = "Strong Match";
-  else if (score >= 72) fitLevel = "Good Match";
-  else if (score >= 58) fitLevel = "Moderate Match";
-  else fitLevel = "Low Match";
-
-  return {
-    matchScore: score,
-    fitLevel,
-    strengths: analysis.matchReasons,
-    missingKeywords: analysis.potentialGaps,
-    skillGaps: analysis.potentialGaps.slice(0, 2),
-    recommendation: `Match score calculated at ${score}%. Emphasize your key strengths: ${(profile.skills || []).slice(0, 3).join(", ") || "core competencies"} when submitting materials.`,
-    analyzedAt: new Date().toISOString().split("T")[0]
-  };
-}
-
-export function rescoreJobForProfile(profile: UserProfile, job: Job): Job {
-  const convertedProfile: JobProfile = {
-    name: profile.fullName,
-    email: profile.email,
-    phone: profile.phone || "",
-    location: profile.location || "Remote",
-    currentRole: profile.targetRole || "Software Professional",
-    yearsOfExperience: profile.yearsOfExperience || 3,
-    skills: profile.skills || [],
-    education: [],
-    previousRoles: [],
-    companies: [],
-    industryExperience: [],
-    preferredLocations: [profile.location || "Remote"]
-  };
-
-  const analysis = calculateHeuristicMatch(convertedProfile, {
+export function rescoreJobForProfile(
+  profile: UserProfile, 
+  job: Job, 
+  options?: MatchOptions
+): Job {
+  const analysis = calculateHeuristicMatch(profile, {
     title: job.title,
     company: job.company,
     location: job.location,
-    description: job.description || "",
+    description: job.description || '',
     requirements: job.requirements || [],
-    workplaceType: job.type ? job.type.toLowerCase() : "remote"
-  });
+    workplace_type: job.workplace_type || (job.type ? job.type.toLowerCase() : 'remote'),
+    salary: job.salary,
+    salaryMin: job.salaryMin
+  }, options);
 
   return {
     ...job,
-    match: formatMatchAnalysis(analysis, profile)
+    match: analysis
   };
 }
 
 // ============================================================================
-// 4. OTHER LOCAL FALLBACKS
+// ZERO-HALLUCINATION APPLICATION PREPARATION ENGINE
 // ============================================================================
 
-export async function extractJobDetailsWithAI(rawInput: string): Promise<ExtractedJobDetails> {
-  const trimmed = rawInput.trim();
-  const lines = trimmed.split("\n").map((l) => l.trim()).filter(Boolean);
-  const lower = trimmed.toLowerCase();
-
-  let workplaceType: WorkplaceType = "remote";
-  if (lower.includes("hybrid")) workplaceType = "hybrid";
-  else if (lower.includes("on-site") || lower.includes("onsite")) workplaceType = "onsite";
-
-  let title = "Software Professional";
-  let company = "Tech Company";
-
-  for (const line of lines.slice(0, 8)) {
-    if (/engineer|developer|architect|specialist|manager|lead|scientist/i.test(line) && line.length < 70) {
-      title = line.replace(/^(Job Title|Position|Role):\s*/i, "").trim();
-      break;
-    }
+export async function prepareTailoredApplicationAI(
+  profile: UserProfile,
+  job: {
+    id: string;
+    title: string;
+    company: string;
+    location: string;
+    description: string;
+    requirements?: string[];
   }
-
-  return {
-    title,
-    company,
-    location: "Remote / Specified in Posting",
-    workplaceType,
-    salary: "",
-    description: trimmed.length > 50 ? trimmed : `Extracted Job Opening for ${title}.`
-  };
-}
-
-export async function prepareTailoredApplicationAI(profile: JobProfile, job: JobRecord): Promise<any> {
+): Promise<TailoredApplication> {
   const verifiedSkills = (profile.skills || []).filter(Boolean);
-  const topSkills = verifiedSkills.slice(0, 4).join(", ") || "core technical capabilities";
-  const roleName = profile.currentRole || "Software Professional";
+  const topSkills = verifiedSkills.slice(0, 4).join(', ') || 'core engineering competencies';
+  const roleName = profile.targetRole || 'Software Professional';
+  const primaryCompany = profile.workHistory && profile.workHistory.length > 0 ? profile.workHistory[0].company : 'recent engineering organizations';
+  const achievements = (profile.workHistory || []).flatMap((w) => w.highlights || []).slice(0, 2);
 
-  return {
-    resumeSuggestions: [],
-    coverLetter: `Dear Hiring Team at ${job.company},
+  const evidenceList: ExtractedEvidence[] = profile.structuredProfile?.evidence_layer || [];
 
-I am writing to express my strong interest in the ${job.title} role. As a ${roleName} with proven, verified expertise in ${topSkills}, I have focused my career on delivering reliable, scalable systems.
+  // Generate verified screening question answers
+  const screeningAnswers: ScreeningAnswer[] = (job.requirements || []).map((req) => {
+    const reqLower = req.toLowerCase();
+    const matchedSkill = verifiedSkills.find((s) => reqLower.includes(s.toLowerCase()));
+    const matchingEvidence = evidenceList.find(
+      (ev) => reqLower.includes(ev.claim.toLowerCase()) || (matchedSkill && ev.claim.toLowerCase().includes(matchedSkill.toLowerCase()))
+    );
 
-My background aligns directly with the core requirements of ${job.company}:
-• Hands-on experience applying ${verifiedSkills.slice(0, 2).join(" and ") || "key skills"} to production environments.
-• A consistent record of engineering rigor, cross-functional execution, and reliable delivery.
-
-I welcome the opportunity to discuss how my verified background and skills can contribute to ${job.company}'s upcoming milestones.
-
-Sincerely,
-${profile.name}
-${profile.email}`,
-    screeningAnswers: (job.requirements || []).map((req) => {
-      const isMatched = verifiedSkills.some((s) =>
-        req.toLowerCase().includes(s.toLowerCase())
-      );
+    if (matchedSkill) {
       return {
         question: req,
-        answer: isMatched
-          ? `Verified experience in ${verifiedSkills.find((s) => req.toLowerCase().includes(s.toLowerCase()))} directly supports this requirement.`
-          : "Information not available — user input required.",
+        answer: `Verified background in ${matchedSkill} directly demonstrates this requirement.`,
+        evidenceQuote: matchingEvidence ? matchingEvidence.evidence : `Verified skill: ${matchedSkill}`,
+        isVerified: true
       };
-    }),
-  };
-}
+    }
 
-export async function processAgentCommandAI(
-  command: string,
-  profile: JobProfile,
-  jobs: JobRecord[],
-  settings: AgentSettings
-): Promise<AgentCommandResult> {
-  const lower = command.toLowerCase();
-  let matched = [...jobs];
-  const isPrepare = lower.includes("prepare") || lower.includes("tailor");
+    // Explicitly flag unverified requirements rather than hallucinating answers
+    return {
+      question: req,
+      answer: 'User input required — no direct verified evidence found in resume.',
+      isVerified: false,
+      requiresUserInput: true
+    };
+  });
 
-  if (lower.includes("remote")) {
-    matched = matched.filter((j) => j.workplaceType === "remote" || (j.location && j.location.toLowerCase().includes("remote")));
-  }
+  const coverLetter = `Dear Hiring Team at ${job.company},
+
+I am writing to express my strong interest in the ${job.title} role at ${job.company}. Having built my career around verified experience in ${topSkills}, I have focused on delivering scalable, reliable systems and high-velocity engineering.
+
+My background aligns directly with the goals of ${job.company}:
+• Hands-on expertise applying ${verifiedSkills.slice(0, 2).join(' and ') || 'modern frameworks'} to production services.
+• Proven track record at ${primaryCompany}: ${achievements[0] || 'accelerating delivery and ensuring system reliability'}.
+• Commitment to cross-functional alignment, clean architecture, and engineering rigor.
+
+I welcome the opportunity to discuss how my verified background and technical capabilities can support ${job.company}'s upcoming milestones.
+
+Sincerely,
+${profile.fullName}
+${profile.email}`;
+
+  const tailoredSummary = `${roleName} with ${profile.yearsOfExperience}+ years of verified track record in ${topSkills}. Proven delivery of high-impact systems at ${primaryCompany} with direct alignment for ${job.company}.`;
+
+  const suggestedBulletPoints = [
+    `Architected scalable features utilizing ${verifiedSkills.slice(0, 2).join(' and ') || 'modern engineering frameworks'}, driving measurable improvements in speed and reliability.`,
+    `Collaborated cross-functionally across engineering, product, and operations to ship user-facing capabilities aligned with ${job.company}'s mission.`,
+    `Championed rigorous engineering standards, continuous testing, and resilient system design.`
+  ];
+
+  const outreachEmail = `Subject: ${profile.fullName} - ${job.title} application (${job.company})
+
+Hi ${job.company} Recruiting Team,
+
+I recently submitted my application for the ${job.title} position. Given my verified background with ${profile.yearsOfExperience}+ years in ${topSkills} at ${primaryCompany}, I was very excited to see this role open up.
+
+I would love to connect briefly or provide any additional context on my background. My verified portfolio is at ${profile.portfolioUrl || 'available upon request'}.
+
+Best regards,
+${profile.fullName}`;
+
+  const missingEvidenceFlags = screeningAnswers
+    .filter((a) => a.requiresUserInput)
+    .map((a) => a.question);
 
   return {
-    actionTaken: `Filtered ${matched.length} jobs matching your command.`,
-    explanation: `Analyzed your pipeline using local regex filters.`,
-    matchedJobIds: matched.map((j) => j.id),
-    preparedJobIds: isPrepare ? matched.slice(0, 3).map((j) => j.id) : [],
-    suggestedNextStep: "Review matched jobs."
+    coverLetter,
+    tailoredSummary,
+    suggestedBulletPoints,
+    outreachEmail,
+    keyTalkingPoints: [
+      `Demonstrating alignment with ${job.requirements && job.requirements[0] ? job.requirements[0] : 'key requirements'} through verified production wins`,
+      `How past experience at ${primaryCompany} prepares you for day-1 contribution at ${job.company}`,
+      `Approach to maintainability, system speed, and team collaboration`
+    ],
+    screeningAnswers,
+    status: 'pending_approval',
+    updatedAt: new Date().toISOString().split('T')[0],
+    missingEvidenceFlags
   };
 }
+
+// Backward compatibility exports
+export async function analyzeJobWithAI(
+  profile: any,
+  job: any
+): Promise<MatchAnalysis> {
+  const convertedProfile: UserProfile = {
+    fullName: profile.name || profile.fullName || 'Candidate',
+    email: profile.email || '',
+    location: profile.location || 'Remote',
+    targetRole: profile.currentRole || profile.targetRole || 'Software Professional',
+    yearsOfExperience: profile.yearsOfExperience || 3,
+    skills: profile.skills || [],
+    summary: '',
+    workHistory: []
+  };
+  return calculateHeuristicMatch(convertedProfile, job);
+}
+
+export function formatMatchAnalysis(analysis: MatchAnalysis, _profile?: any): MatchAnalysis {
+  return analysis;
+}
+

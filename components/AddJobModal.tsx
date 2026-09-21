@@ -73,6 +73,8 @@ export function AddJobModal({ isOpen, onClose, onAddJob, profile }: AddJobModalP
       company: company.trim(),
       location: location.trim(),
       type,
+      workplace_type: type === 'Remote' ? 'remote' : type === 'Hybrid' ? 'hybrid' : 'onsite',
+      source: 'Direct Ingestion',
       salaryRange: salaryRange.trim() || undefined,
       url: url.trim() || undefined,
       description: description.trim() || `${title} at ${company}. Great opportunity.`,

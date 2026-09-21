@@ -10,6 +10,7 @@ import {
   ToolItem,
   ExtractedEvidence,
   DocumentQualityAssessment,
+  SkillCategory,
 } from './types';
 
 export interface ResumePipelineInput {
@@ -42,10 +43,15 @@ Your sole mission is to extract an authentic, accurate, and completely verifiabl
 5. QUALITY DETECTION:
    - Carefully assess the visual layout and text clarity: Is this a multi-column layout? Is it a scanned or image-heavy document? Are pages rotated? Is any text blurry or OCR-degraded?
    - If quality is compromised or ambiguous, set qualityWarning: "Some resume information could not be read confidently. Please review the highlighted fields." and set confidence to "needs_review" for affected fields.
-6. COMPLETE EXTRACTION:
+6. 4-TIER SKILL CATEGORIZATION:
+   - Categorize skills into:
+     * technical (languages, frameworks, databases, cloud, DevOps)
+     * analytical (system design, profiling, data analysis, A/B testing, metrics)
+     * business (product operations, requirements scoping, market research, customer insights)
+     * soft (leadership, mentorship, communication, collaboration)
+7. COMPLETE EXTRACTION:
    - Read every page from top to bottom, including header, footer, sidebar columns, and tables.
-   - Separate skills (conceptual/domain abilities like System Design, Agile, Market Research) from tools/software (specific technologies like Git, Docker, Figma, Jira, Excel).
-   - Capture employment history with company, title, start_date, end_date (e.g., "Jan 2021", "Present"), responsibilities, achievements, and skills used.`;
+   - Separate conceptual skills from specific tools/software (e.g. Git, Docker, Figma, Jira).`;
 
 export async function processResumePipeline(
   input: ResumePipelineInput
@@ -102,7 +108,11 @@ Return a valid JSON object matching this EXACT schema:
     }
   ],
   "skills": [
-    { "name": "string", "confidence": "high" | "needs_review" }
+    { 
+      "name": "string", 
+      "category": "technical" | "analytical" | "business" | "soft", 
+      "confidence": "high" | "needs_review" 
+    }
   ],
   "tools": [
     { "name": "string", "confidence": "high" | "needs_review" }
@@ -161,7 +171,13 @@ Return a valid JSON object matching this EXACT schema:
 
       parts.push(promptText);
 
-      const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
+      const candidateModels = [
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-3.1-flash-lite',
+        'gemini-3.8-flash'
+      ];
       let responseText: string | null = null;
       let lastErr: any = null;
 
@@ -248,9 +264,13 @@ function formatAndValidateProfile(
         .map((s: any, idx: number) => {
           const name = typeof s === 'string' ? s : s?.name;
           if (!name || typeof name !== 'string') return null;
+          const validCategory: SkillCategory = ['technical', 'analytical', 'business', 'soft'].includes(s?.category)
+            ? s.category
+            : 'technical';
           return {
             id: `skill-${idx}-${Date.now()}`,
             name: name.trim(),
+            category: validCategory,
             confidence: (s?.confidence === 'needs_review' ? 'needs_review' : 'high') as 'high' | 'needs_review',
             source: 'VERIFIED FROM RESUME' as const,
           };
@@ -312,6 +332,7 @@ function formatAndValidateProfile(
         evidence: sanitizeString(ev.evidence, ''),
         source_section: sanitizeString(ev.source_section, 'General'),
         confidence: ev.confidence === 'needs_review' ? 'needs_review' : 'high',
+        sourceType: 'VERIFIED FROM RESUME',
       }))
     : [];
 
@@ -348,12 +369,14 @@ function formatAndValidateProfile(
     languages: Array.isArray(raw.languages) ? raw.languages.filter(Boolean) : [],
     explicit_preferences: {
       location: sanitizeString(raw.explicit_preferences?.location, ''),
-      remote_preference: sanitizeString(raw.explicit_preferences?.remote_preference, ''),
+      remote_preference: sanitizeString(raw.explicit_preferences?.remote_preference, 'remote'),
       salary: sanitizeString(raw.explicit_preferences?.salary, ''),
       notice_period: sanitizeString(raw.explicit_preferences?.notice_period, ''),
     },
     evidence_layer: evidenceLayer,
     quality_assessment: qualityAssessment,
+    isConfirmed: false, // Must be explicitly reviewed and confirmed by the candidate
+    verificationStatus: 'unconfirmed',
   };
 
   return {
@@ -374,14 +397,14 @@ function sanitizeString(val: any, fallback: string = ''): string {
 }
 
 /**
- * Deterministic fallback parser adhering to the same anti-hallucination rules
+ * Deterministic fallback parser adhering to anti-hallucination rules, 4-tier skill categorization,
  * and evidence tracking when Gemini client is not initialized.
  */
 function fallbackDeterministicPipeline(input: ResumePipelineInput): ResumePipelineResult {
   const text = input.text || '';
   const lines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
 
-  // Extract Name (first clean line not a heading)
+  // Extract Name
   const headingKeywords = /^(curriculum vitae|resume|cv|contact|profile|summary|experience|education|skills)/i;
   let name = 'Candidate';
   for (const line of lines.slice(0, 10)) {
@@ -412,15 +435,53 @@ function fallbackDeterministicPipeline(input: ResumePipelineInput): ResumePipeli
   const portfolioMatch = text.match(/https?:\/\/(?:www\.)?[a-zA-Z0-9-]+\.(?:dev|io|me|com|app)(?:\/[^\s]*)?/i);
   const portfolio = portfolioMatch && !portfolioMatch[0].includes('linkedin') ? portfolioMatch[0] : '';
 
-  // Extract Skills & Tools with evidence tracking
-  const KNOWN_SKILLS = [
-    'TypeScript', 'JavaScript', 'Python', 'Go', 'Rust', 'Java', 'C++', 'C#', 'SQL',
-    'HTML5', 'CSS3', 'React', 'Next.js', 'Vue.js', 'Angular', 'Node.js', 'Express',
-    'Django', 'Flask', 'FastAPI', 'Spring Boot', 'PostgreSQL', 'MySQL', 'MongoDB',
-    'Redis', 'GraphQL', 'REST APIs', 'AWS', 'GCP', 'Azure', 'Docker', 'Kubernetes',
-    'Terraform', 'CI/CD', 'Git', 'Machine Learning', 'Deep Learning', 'PyTorch',
-    'TensorFlow', 'LLMs', 'Generative AI', 'NLP', 'System Design', 'Microservices',
-    'Agile', 'Scrum', 'Product Management', 'Data Analysis', 'Data Engineering'
+  // 4-Tier Categorized Skills Dictionary
+  const KNOWN_SKILLS: { name: string; category: SkillCategory }[] = [
+    // Technical
+    { name: 'TypeScript', category: 'technical' },
+    { name: 'JavaScript', category: 'technical' },
+    { name: 'Python', category: 'technical' },
+    { name: 'Go', category: 'technical' },
+    { name: 'Rust', category: 'technical' },
+    { name: 'Java', category: 'technical' },
+    { name: 'C++', category: 'technical' },
+    { name: 'C#', category: 'technical' },
+    { name: 'SQL', category: 'technical' },
+    { name: 'React', category: 'technical' },
+    { name: 'Next.js', category: 'technical' },
+    { name: 'Node.js', category: 'technical' },
+    { name: 'PostgreSQL', category: 'technical' },
+    { name: 'Redis', category: 'technical' },
+    { name: 'GraphQL', category: 'technical' },
+    { name: 'REST APIs', category: 'technical' },
+    { name: 'Docker', category: 'technical' },
+    { name: 'Kubernetes', category: 'technical' },
+    { name: 'CI/CD', category: 'technical' },
+    { name: 'Machine Learning', category: 'technical' },
+    { name: 'LLMs', category: 'technical' },
+    { name: 'Gemini API', category: 'technical' },
+
+    // Analytical
+    { name: 'System Design', category: 'analytical' },
+    { name: 'Data Analysis', category: 'analytical' },
+    { name: 'Performance Profiling', category: 'analytical' },
+    { name: 'A/B Testing', category: 'analytical' },
+    { name: 'Root Cause Analysis', category: 'analytical' },
+    { name: 'Market Research', category: 'analytical' },
+    { name: 'Consumer Insights', category: 'analytical' },
+
+    // Business
+    { name: 'Product Operations', category: 'business' },
+    { name: 'AI Operations', category: 'business' },
+    { name: 'Requirements Scoping', category: 'business' },
+    { name: 'Sprint Planning', category: 'business' },
+    { name: 'Stakeholder Management', category: 'business' },
+
+    // Soft
+    { name: 'Team Mentorship', category: 'soft' },
+    { name: 'Cross-Functional Leadership', category: 'soft' },
+    { name: 'Technical Writing', category: 'soft' },
+    { name: 'Agile Collaboration', category: 'soft' }
   ];
 
   const KNOWN_TOOLS = [
@@ -433,13 +494,14 @@ function fallbackDeterministicPipeline(input: ResumePipelineInput): ResumePipeli
   const extractedTools: ToolItem[] = [];
   const evidenceLayer: ExtractedEvidence[] = [];
 
-  for (const skill of KNOWN_SKILLS) {
-    const regex = new RegExp(`\\b${skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+  for (const { name: skillName, category } of KNOWN_SKILLS) {
+    const regex = new RegExp(`\\b${skillName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
     const match = text.match(regex);
     if (match) {
       extractedSkills.push({
         id: `skill-${extractedSkills.length}-${Date.now()}`,
-        name: skill,
+        name: skillName,
+        category,
         confidence: 'high',
         source: 'VERIFIED FROM RESUME',
       });
@@ -447,10 +509,11 @@ function fallbackDeterministicPipeline(input: ResumePipelineInput): ResumePipeli
       const idx = match.index || 0;
       const snippet = text.slice(Math.max(0, idx - 40), Math.min(text.length, idx + 60)).replace(/\n/g, ' ').trim();
       evidenceLayer.push({
-        claim: `Proficiency in ${skill}`,
+        claim: `Verified proficiency in ${skillName}`,
         evidence: `"...${snippet}..."`,
         source_section: 'Skills / Experience',
         confidence: 'high',
+        sourceType: 'VERIFIED FROM RESUME',
       });
     }
   }
@@ -551,7 +614,7 @@ function fallbackDeterministicPipeline(input: ResumePipelineInput): ResumePipeli
     languages: [],
     explicit_preferences: {
       location: '',
-      remote_preference: 'Open to Remote',
+      remote_preference: 'remote',
       salary: '',
       notice_period: '',
     },
@@ -562,6 +625,8 @@ function fallbackDeterministicPipeline(input: ResumePipelineInput): ResumePipeli
       qualityWarning: null,
       overallConfidence: 'high',
     },
+    isConfirmed: false,
+    verificationStatus: 'unconfirmed',
   };
 
   return {

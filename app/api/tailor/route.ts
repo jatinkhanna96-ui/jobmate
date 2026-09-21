@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       requirements: job.requirements,
     };
 
-    const tailored = await prepareTailoredApplicationAI(convertedProfile, convertedJob);
+    const tailored = await prepareTailoredApplicationAI(profile, convertedJob);
 
     const topSkills = profile.skills.slice(0, 4).join(', ');
     const primaryCompany = profile.workHistory && profile.workHistory.length > 0 ? profile.workHistory[0].company : 'leading engineering teams';
