@@ -72,7 +72,137 @@ Databases & Cloud: PostgreSQL, Redis, Docker, GCP, Git`,
   ],
   education: 'B.S. in Computer Science - UC Berkeley',
   portfolioUrl: 'https://alexrivera.dev',
-  linkedinUrl: 'https://linkedin.com/in/alexrivera'
+  linkedinUrl: 'https://linkedin.com/in/alexrivera',
+  experienceCalculatedText: '5 years 8 months experience',
+  verificationStatus: 'verified',
+  documentQuality: {
+    documentType: 'text_pdf',
+    isMultiColumn: true,
+    qualityWarning: null,
+    overallConfidence: 'high',
+  },
+  structuredProfile: {
+    personal: {
+      name: 'Alex Rivera',
+      email: 'alex.rivera@example.com',
+      phone: '+1 (555) 234-5678',
+      location: 'San Francisco, CA (Open to Remote)',
+      linkedin: 'https://linkedin.com/in/alexrivera',
+      portfolio: 'https://alexrivera.dev',
+    },
+    professional_summary:
+      'Results-driven Senior Full Stack Engineer with 6 years of experience shipping high-impact web products and generative AI capabilities. Expert in React, Next.js, TypeScript, Node.js, and modern cloud architectures.',
+    current_role: {
+      title: 'Staff Software Engineer',
+      company: 'TechPulse Solutions',
+      start_date: '2022',
+      end_date: 'Present',
+    },
+    total_experience_years: 5.7,
+    experience_formatted: '5 years 8 months experience',
+    experience: [
+      {
+        id: 'exp-1',
+        company: 'TechPulse Solutions',
+        title: 'Staff Software Engineer',
+        start_date: '2022',
+        end_date: 'Present',
+        responsibilities: [
+          'Led frontend architecture migration to Next.js 14, improving page load speeds by 42%.',
+          'Mentored 5 mid-level engineers in component design, TypeScript safety, and performance profiling.',
+        ],
+        achievements: [
+          'Integrated generative AI assistants for automated document workflows, saving users 35+ hours weekly.',
+        ],
+        skills_used: ['TypeScript', 'Next.js', 'React', 'Gemini API'],
+        confidence: 'high',
+        source: 'VERIFIED FROM RESUME',
+      },
+      {
+        id: 'exp-2',
+        company: 'CloudScale Inc.',
+        title: 'Full Stack Engineer',
+        start_date: '2019',
+        end_date: '2022',
+        responsibilities: [
+          'Designed and built distributed microservices in Node.js and PostgreSQL serving 1.2M monthly active users.',
+          'Developed interactive analytics dashboards with real-time streaming data.',
+        ],
+        achievements: [
+          'Automated CI/CD deployment pipelines using GitHub Actions and Docker, reducing release cycle by 60%.',
+        ],
+        skills_used: ['Node.js', 'PostgreSQL', 'Docker', 'CI/CD Pipelines'],
+        confidence: 'high',
+        source: 'VERIFIED FROM RESUME',
+      },
+    ],
+    skills: [
+      { id: 's-1', name: 'TypeScript', confidence: 'high', source: 'VERIFIED FROM RESUME' },
+      { id: 's-2', name: 'React / Next.js', confidence: 'high', source: 'VERIFIED FROM RESUME' },
+      { id: 's-3', name: 'Node.js', confidence: 'high', source: 'VERIFIED FROM RESUME' },
+      { id: 's-4', name: 'Python', confidence: 'high', source: 'VERIFIED FROM RESUME' },
+      { id: 's-5', name: 'REST & GraphQL APIs', confidence: 'high', source: 'VERIFIED FROM RESUME' },
+      { id: 's-6', name: 'Gemini API / LLM Prompt Engineering', confidence: 'high', source: 'VERIFIED FROM RESUME' },
+      { id: 's-7', name: 'PostgreSQL / Prisma', confidence: 'high', source: 'VERIFIED FROM RESUME' },
+      { id: 's-8', name: 'Tailwind CSS', confidence: 'high', source: 'VERIFIED FROM RESUME' },
+    ],
+    tools: [
+      { id: 't-1', name: 'Docker', confidence: 'high', source: 'VERIFIED FROM RESUME' },
+      { id: 't-2', name: 'Git & GitHub Actions', confidence: 'high', source: 'VERIFIED FROM RESUME' },
+      { id: 't-3', name: 'Redis', confidence: 'high', source: 'VERIFIED FROM RESUME' },
+      { id: 't-4', name: 'GCP (Google Cloud)', confidence: 'high', source: 'VERIFIED FROM RESUME' },
+    ],
+    industries: ['B2B SaaS', 'Developer Tools', 'AI Applications'],
+    education: [
+      {
+        id: 'edu-1',
+        institution: 'University of California, Berkeley',
+        degree: 'B.S. in Computer Science',
+        field_of_study: 'Computer Science',
+        start_date: '2015',
+        end_date: '2019',
+        confidence: 'high',
+      },
+    ],
+    certifications: [],
+    projects: [
+      {
+        id: 'proj-1',
+        name: 'Enterprise Document Intelligence Copilot',
+        description: 'Automated document processing and multi-modal summarization system using Next.js and Gemini.',
+        technologies: ['Next.js', 'TypeScript', 'Gemini API'],
+        link: 'https://github.com/alexrivera',
+        confidence: 'high',
+      },
+    ],
+    languages: ['English'],
+    explicit_preferences: {
+      location: 'San Francisco, CA',
+      remote_preference: 'Hybrid or Remote',
+      salary: '$165,000+',
+      notice_period: '2 weeks',
+    },
+    evidence_layer: [
+      {
+        claim: 'Proficiency in TypeScript and Next.js',
+        evidence: 'Expert in React, Next.js, TypeScript, Node.js, and modern cloud architectures.',
+        source_section: 'Summary',
+        confidence: 'high',
+      },
+      {
+        claim: 'Cloud & Docker CI/CD Architecture',
+        evidence: 'Automated CI/CD deployment pipelines using GitHub Actions and Docker, reducing release cycle by 60%.',
+        source_section: 'Experience (CloudScale Inc.)',
+        confidence: 'high',
+      },
+    ],
+    quality_assessment: {
+      documentType: 'text_pdf',
+      isMultiColumn: true,
+      qualityWarning: null,
+      overallConfidence: 'high',
+    },
+  },
 };
 
 export const initialJobs: Job[] = [
