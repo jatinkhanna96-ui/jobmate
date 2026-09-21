@@ -1,0 +1,8 @@
+{
+  "name": "ApplyPilot",
+  "description": "AI job application agent that matches your profile against jobs, tailors applications, and tracks your pipeline with user approval.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
